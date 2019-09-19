@@ -1,0 +1,225 @@
+Overall good effort. Many errors and omissions
+
+-- Poor statement formatting
+
+Deductions: -28
+Grade: 72
+
+Base Queries for 30% (5 points each): 20 (-10)
+
+BQ1
+- Tables: job, location, time, sales class
+- Aggregate functions: sum of qty ordered and job amount
+- Grouping: W_Location_D.Location_Id, Location_Name, 
+   W_Sales_Class_D.Sales_Class_Id, Sales_Class_Desc,
+   Base_Price, Time_Year, Time_Month;
+
+-- Good solution
+
+BQ2
+
+- Tables: subjob, job, location, time, invoice, shipment
+- Aggregate functions: sum of invoice quantity and amount
+- Grouping: W_Sub_Job_F.Job_Id, W_Location_D.Location_Id, 
+    W_LOCATION_D.LOCATION_NAME, Quantity_Ordered, Unit_Price, 
+    W_Time_D.Time_Year, W_Time_D.Time_Month
+- CREATE VIEW statement
+
+-- Missing subjob and shipment (-2).
+-- Without these tables and join conditions, there is a cross product
+-- between job and invoice
+-- Do not need to use substr and to_char functions. Use Time_Year column.
+
+BQ3
+- Tables: subjob, job, location, time, machine type
+- Aggregate functions: sum of labor cost, material cost, overhead,
+  machine hours * rate per hour, total cost, quantity produced
+- Grouping: W_Sub_Job_F.Job_Id, W_Location_D.LOCATION_ID, 
+    W_LOCATION_D.LOCATION_NAME, W_TIME_D.TIME_YEAR, 
+    W_TIME_D.TIME_MONTH
+- CREATE VIEW statement
+
+-- Missing join condition on jobid (-2). Cross product without this condition.
+-- Do not need to use substr and to_char functions. Use Time_Year column.
+
+BQ4
+- Tables: invoice line, time, location, sales class
+- Aggregate functions: sum of return qty and return amount
+- Condition on quantity_shipped > invoice_quantity
+- Grouping: W_Location_D.Location_Id, Location_Name,
+  W_Sales_Class_D.Sales_Class_Id, Sales_Class_Desc, Time_Year, Time_Month
+
+-- Do not need to use substr and to_char functions. Use Time_Year column.
+-- Do not need job table (-1)
+-- Missing join condition with job table (-1). Cross product with job and invoice.
+
+-- Do not create a materialized view
+
+BQ5
+- Tables: job, location, sales class, nested query (X1)
+- Aggregate functions: none in outer query
+- Columns: last shipment date, GetBusDaysDiff function, SumDelayShipQty
+- Conditions: date_promised < X1.Last_Shipment_Date, W_JOB_F.JOB_ID  = X1.Job_Id
+- Grouping: none in outer query
+- CREATE VIEW statement
+
+-- Do not create a materialized view
+
+-- Missing join condition on jobid (-1). Cross product operation without condition.
+-- WHERE condition should not use GetBusDays function (-1)
+
+BQ6
+- Tables: job, location, sales class, nested query (X1)
+- Aggregate functions: none in outer query
+- Columns: first shipment date, GetBusDaysDiff function, date ship by
+- Grouping: none in outer query
+- Conditions: date_ship_By < X1.FirstShipDate, W_JOB_F.JOB_ID  = X1.Job_Id
+- CREATE VIEW statement
+
+-- Missing join condition on jobid (-1). Cross product operation without condition.
+-- Missing join condition on jobid (-1). Cross product operation without condition.
+
+Analytic queries for 60% (6 points each): 42 (-18)
+
+AQ1
+- Tables: W_JOB_F, W_Location_D, W_TIME_D
+- Columns: SUM ( QUANTITY_ORDERED * Unit_Price ) AS SumJobAmt,
+  SUM ( SUM ( QUANTITY_ORDERED * Unit_Price ) ) 
+    OVER ( PARTITION BY Location_Name, Time_Year 
+      ORDER BY Time_Month
+      ROWS UNBOUNDED PRECEDING ) AS CumSumAmt
+- Grouping: Location_Name, Time_Year, Time_Month
+
+-- ORDER BY Time_Year (-1)
+
+AQ2
+- Tables: W_JOB_F, W_Location_D, W_TIME_D
+- Columns: AVG( QUANTITY_ORDERED * Unit_Price ) AS AvgJobAmount ,
+  AVG( AVG( QUANTITY_ORDERED * Unit_Price ) )
+   OVER ( PARTITION BY  Location_Name 
+   ORDER BY Time_Year, Time_Month 
+   ROWS BETWEEN 11 PRECEDING AND CURRENT ROW )
+Grouping: Location_Name, Time_Year, Time_Month
+
+-- Incorrect aggregate and analytic functions (-1)
+-- ORDER BY incorrect in analytic function (-1)
+
+
+AQ3
+- Tables: LocCostSummary X1, LocRevenueSummary X2
+- Columns: X1.Location_Name, X1.Time_Year, SUM(SumInvoiceAmt - TotalCosts) AS SumLocProfit
+- Join condition: X1.Job_Id = X2.Job_Id
+- Grouping: X1.Location_Name, X1.Time_Year
+
+       RANK() OVER ( PARTITION BY X1.Time_Year 
+        ORDER BY ( SUM(SumInvoiceAmt - TotalCosts) ) DESC ) AS RankProfitSum
+
+-- Missing PARTITION BY clause (-1)
+-- Missing join condition on jobid (-1). Cross product.
+-- BQ2 and BQ3 are incorrect so AQ3 is incorrect.
+-- No additional deduction
+
+AQ4
+- Tables: LocCostSummary X1, LocRevenueSummary X2
+- Columns: X1.Location_Name, X1.Time_Year,
+       SUM (SumInvoiceAmt - TotalCosts) / SUM(SumInvoiceAmt) AS ProfitMargin
+- Join condition: X1.Job_Id = X2.Job_Id
+- Grouping: X1.Location_Name, X1.Time_Year
+
+       RANK() OVER ( PARTITION BY X1.Time_Year 
+        ORDER BY ( SUM (SumInvoiceAmt - TotalCosts) / SUM(SumInvoiceAmt) ) DESC )  AS RankProfitMargin
+
+-- Missing PARTITION BY clause (-1)
+-- Missing join condition on jobid (-1). Cross product.
+-- BQ2 and BQ3 are incorrect so AQ3 is incorrect.
+-- No additional deduction
+
+AQ5
+- Tables: LocCostSummary X1, LocRevenueSummary X2
+- Columns: X1.Job_Id, X1.Location_Name, X1.Time_Year, X1.Time_Year,
+       (SumInvoiceAmt - TotalCosts) / SumInvoiceAmt AS ProfitMargin
+- Join condition: X1.Job_Id = X2.Job_Id
+- Grouping: none
+
+       PERCENT_RANK() OVER ( 
+        ORDER BY ( (SumInvoiceAmt - TotalCosts) / SumInvoiceAmt ) )  
+         AS PercentRankProfitMargin
+
+-- Do not need GROUP BY (-1)
+
+AQ6
+- Tables: Nested query in FROM clause
+
+  SELECT X1.Job_Id, X1.Location_Name, X1.Time_Year, X1.Time_Month,
+         (SumInvoiceAmt - TotalCosts) / SumInvoiceAmt AS ProfitMargin,
+         PERCENT_RANK() OVER ( 
+         ORDER BY ( (SumInvoiceAmt - TotalCosts) / SumInvoiceAmt ) )  
+          AS PercentRankProfitMargin
+  FROM LocCostSummary X1, LocRevenueSummary X2 
+  WHERE X1.Job_Id = X2.Job_Id )
+
+- Conditions: PercentRankProfitMargin > 0.95
+-- Do not need GROUP BY (-1)
+
+AQ7
+- Tables: invoice fact, time, sales class
+- Columns: Sales_Class_Desc, Time_Year,
+  SUM ( quantity_shipped - invoice_quantity ) as ReturnSum
+- Conditions: quantity_shipped > invoice_quantity
+- Grouping: Sales_Class_Desc, Time_Year
+- Analytic functions
+
+  RANK() over ( PARTITION BY Time_Year 
+    ORDER BY SUM ( quantity_shipped - invoice_quantity ) DESC ) 
+
+-- Missing PARTITION BY clause (-1)
+-- Missing condition on quantity shipped (-1)
+
+AQ8
+- Tables: invoice fact, time, sales class
+- Columns: Time_Year, Sales_Class_Desc,
+  SUM ( quantity_shipped - invoice_quantity ) as SumReturnQty
+- Conditions: quantity_shipped > invoice_quantity
+- Grouping: Sales_Class_Desc, Time_Year
+- Analytic functions
+
+Ratio_To_Report(SUM ( quantity_shipped - invoice_quantity )) 
+    OVER ( PARTITION BY Time_Year ) AS RatioReturnSum
+
+-- Need Ratio_To_Report (-1)
+-- Missing PARTITION BY clause (-1)
+-- Missing condition on quantity shipped (-1)
+
+AQ9
+- Tables: FirstShipmentDelays, W_Time_D
+- Columns: Location_Name, W_Time_D.Time_Year, SUM(BusDaysDiff) as SumDelayDays
+- Grouping: Location_Name, W_Time_D.Time_Year
+- Analytic functions:
+
+  RANK() OVER ( PARTITION BY W_Time_D.Time_Year 
+    ORDER BY SUM(BusDaysDiff) DESC) AS RankSumDelayDays,
+  DENSE_RANK() OVER ( PARTITION BY W_Time_D.Time_Year 
+    ORDER BY SUM(BusDaysDiff) DESC) AS RankSumDelayDays
+
+-- Missing GROUP BY clause (-1)
+-- Missing PARTITION BY clause (-1)
+-- Missing dense rank
+
+AQ10
+- Tables: LastShipmentDelays, W_Time_D
+- Columns: Location_Name, W_Time_D.Time_Year, COUNT(*) AS NumJobs
+       SUM(BusDaysDiff) as SumDelayDays,
+       SUM(Quantity_Ordered - SumDelayShipQty) / SUM(Quantity_Ordered) 
+- Grouping: Location_Name, W_Time_D.Time_Year
+- Analytic functions:
+
+  RANK() OVER ( PARTITION BY W_Time_D.Time_Year 
+    ORDER BY SUM(Quantity_Ordered - SumDelayShipQty) / 
+             SUM(Quantity_Ordered) DESC) AS RankDelayRate
+
+-- Incorrect grouping clause (-1)
+-- Missing PARTITION BY clause (-1)
+
+4. Deliverables (10%)
+- Query listing (5%)
+- Snapshot of query exections (5%)
